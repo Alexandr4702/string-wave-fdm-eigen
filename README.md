@@ -9,6 +9,7 @@ wave equation with fixed ends. Eigen is included as a Git submodule.
 git submodule update --init --recursive
 cmake --preset msys2-clang64
 cmake --build --preset msys2-clang64
+ctest --preset msys2-clang64
 ```
 
 Run the simulation and visualization:
@@ -21,6 +22,22 @@ The physical and grid parameters remain constants in `main/main.cpp`, as in the
 original project. OpenGL and GLUT (or FreeGLUT) must be installed on the system.
 The included Windows preset uses the installed MSYS2 Clang64 toolchain and keeps
 it separate from Visual Studio build files.
+
+## Architecture
+
+The project separates numerical integration from presentation:
+
+- `WaveSimulation` owns the finite-difference operator and the three rolling
+  displacement vectors. It has no dependency on OpenGL or GLUT.
+- `SimulationObserver` defines the notification contract for a completed time
+  step.
+- `OpenGLVisualizer` implements `SimulationObserver`. Its GLUT timer advances
+  the simulation, while observer notifications request screen redraws.
+- `main.cpp` is the composition root that creates the simulation and visualizer.
+
+This direction of dependency keeps the mathematical model reusable in tests or
+other frontends. A new observer can record selected frames, calculate energy,
+or export data without changing `WaveSimulation`.
 
 ## Mathematical model
 

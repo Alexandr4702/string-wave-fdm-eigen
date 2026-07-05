@@ -28,5 +28,14 @@
       "configurePreset": "msys2-clang64",
       "jobs": 16
     }
+  ],
+  "testPresets": [
+    {
+      "name": "msys2-clang64",
+      "configurePreset": "msys2-clang64",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
   ]
 }

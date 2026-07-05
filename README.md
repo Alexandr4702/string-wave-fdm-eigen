@@ -162,3 +162,7 @@ previous, current, and next displacement vectors are retained, so the time
 integration requires $3N$ floating-point values instead of storing the full
 $N \times R$ history. With the current grid, this reduces displacement storage
 from approximately 320 MB to 24 KB.
+
+## License
+
+This project is available under the [MIT License](LICENSE).

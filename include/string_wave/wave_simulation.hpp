@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <functional>
 #include <vector>
 
 #include <Eigen/Core>
@@ -13,18 +14,26 @@ namespace string_wave
 
 struct SimulationParameters
 {
-    double duration = 10.0;
-    double length = 0.5;
-    double wave_speed = 0.2;
-    double time_step = 0.00025;
-    double space_step = 0.0005;
-    double initial_amplitude = 0.1;
+    double duration;
+    double length;
+    double wave_speed;
+    double time_step;
+    double space_step;
+};
+
+struct WaveProblem
+{
+    SimulationParameters parameters;
+    std::function<double(double)> initial_displacement;
+    std::function<double(double)> initial_velocity;
+    std::function<double(double)> left_boundary;
+    std::function<double(double)> right_boundary;
 };
 
 class WaveSimulation
 {
   public:
-    explicit WaveSimulation(SimulationParameters parameters = {});
+    explicit WaveSimulation(WaveProblem problem);
 
     void add_observer(SimulationObserver &observer);
     bool advance();
@@ -40,12 +49,7 @@ class WaveSimulation
     void initialize_state();
     void notify_observers();
 
-    [[nodiscard]] double initial_displacement(double position) const;
-    [[nodiscard]] double initial_velocity(double position) const;
-    [[nodiscard]] double left_boundary(double time) const;
-    [[nodiscard]] double right_boundary(double time) const;
-
-    SimulationParameters parameters_;
+    WaveProblem problem_;
     std::size_t point_count_;
     std::size_t step_count_;
     std::size_t current_step_ = 0;

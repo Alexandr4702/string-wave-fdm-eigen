@@ -29,6 +29,8 @@ The project separates numerical integration from presentation:
 
 - `WaveSimulation` owns the finite-difference operator and the three rolling
   displacement vectors. It has no dependency on OpenGL or GLUT.
+- `WaveProblem` is supplied by the application and contains all simulation
+  constants together with the initial and boundary-condition functions.
 - `SimulationObserver` defines the notification contract for a completed time
   step.
 - `OpenGLVisualizer` implements `SimulationObserver`. Its GLUT timer advances
@@ -73,11 +75,11 @@ u(x,0)=f(x), \qquad
 \frac{\partial u}{\partial t}(x,0)=f_1(x).
 $$
 
-Both functions currently return zero. The code then sets the displacement of
-the centre grid point to $0.1$. This represents a stationary string with a
-localised initial displacement. Because the displacement occupies one grid
-point instead of a smooth profile, it excites many high-frequency spatial
-modes.
+The problem configured in `main.cpp` supplies zero initial velocity and an
+initial-displacement function equal to $0.1$ at the centre grid point and zero
+elsewhere. This represents a stationary string with a localised initial
+displacement. Because the displacement occupies one grid point instead of a
+smooth profile, it excites many high-frequency spatial modes.
 
 ## Finite-difference method
 

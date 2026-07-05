@@ -9,8 +9,9 @@ namespace string_wave
 namespace
 {
 
-SimulationParameters validate(SimulationParameters parameters)
+WaveProblem validate(WaveProblem problem)
 {
+    const SimulationParameters &parameters = problem.parameters;
     if (parameters.length <= 0.0 || parameters.duration <= 0.0 || parameters.wave_speed <= 0.0 ||
         parameters.time_step <= 0.0 || parameters.space_step <= 0.0)
     {
@@ -22,15 +23,20 @@ SimulationParameters validate(SimulationParameters parameters)
         throw std::invalid_argument("The Courant number must not exceed one.");
     }
 
-    return parameters;
+    if (!problem.initial_displacement || !problem.initial_velocity || !problem.left_boundary || !problem.right_boundary)
+    {
+        throw std::invalid_argument("All initial and boundary conditions must be provided.");
+    }
+
+    return problem;
 }
 
 } // namespace
 
-WaveSimulation::WaveSimulation(SimulationParameters parameters)
-    : parameters_(validate(std::move(parameters))),
-      point_count_(static_cast<std::size_t>(parameters_.length / parameters_.space_step) + 1),
-      step_count_(static_cast<std::size_t>(parameters_.duration / parameters_.time_step) + 1)
+WaveSimulation::WaveSimulation(WaveProblem problem)
+    : problem_(validate(std::move(problem))),
+      point_count_(static_cast<std::size_t>(problem_.parameters.length / problem_.parameters.space_step) + 1),
+      step_count_(static_cast<std::size_t>(problem_.parameters.duration / problem_.parameters.time_step) + 1)
 {
     initialize_operator();
     initialize_state();
@@ -39,7 +45,7 @@ WaveSimulation::WaveSimulation(SimulationParameters parameters)
 void WaveSimulation::add_observer(SimulationObserver &observer)
 {
     observers_.push_back(&observer);
-    observer.on_simulation_step(current_step_, current_step_ * parameters_.time_step, current_frame_);
+    observer.on_simulation_step(current_step_, current_step_ * problem_.parameters.time_step, current_frame_);
 }
 
 bool WaveSimulation::advance()
@@ -54,9 +60,9 @@ bool WaveSimulation::advance()
         next_frame_.noalias() = evolution_matrix_ * current_frame_;
         next_frame_ -= previous_frame_;
 
-        const double next_time = (current_step_ + 1) * parameters_.time_step;
-        next_frame_[0] = left_boundary(next_time);
-        next_frame_[static_cast<Eigen::Index>(point_count_ - 1)] = right_boundary(next_time);
+        const double next_time = (current_step_ + 1) * problem_.parameters.time_step;
+        next_frame_[0] = problem_.left_boundary(next_time);
+        next_frame_[static_cast<Eigen::Index>(point_count_ - 1)] = problem_.right_boundary(next_time);
     }
 
     previous_frame_.swap(current_frame_);
@@ -68,7 +74,7 @@ bool WaveSimulation::advance()
 
 const SimulationParameters &WaveSimulation::parameters() const noexcept
 {
-    return parameters_;
+    return problem_.parameters;
 }
 
 const Eigen::VectorXd &WaveSimulation::displacement() const noexcept
@@ -93,7 +99,8 @@ std::size_t WaveSimulation::point_count() const noexcept
 
 void WaveSimulation::initialize_operator()
 {
-    const double courant = parameters_.wave_speed * parameters_.time_step / parameters_.space_step;
+    const SimulationParameters &parameters = problem_.parameters;
+    const double courant = parameters.wave_speed * parameters.time_step / parameters.space_step;
     const double side = courant * courant;
     const double center = 2.0 * (1.0 - side);
 
@@ -121,43 +128,20 @@ void WaveSimulation::initialize_state()
 
     for (std::size_t i = 0; i < point_count_; ++i)
     {
-        const double position = i * parameters_.space_step;
-        current_frame_[static_cast<Eigen::Index>(i)] = initial_displacement(position);
-        next_frame_[static_cast<Eigen::Index>(i)] =
-            current_frame_[static_cast<Eigen::Index>(i)] + parameters_.time_step * initial_velocity(position);
+        const double position = i * problem_.parameters.space_step;
+        current_frame_[static_cast<Eigen::Index>(i)] = problem_.initial_displacement(position);
+        next_frame_[static_cast<Eigen::Index>(i)] = current_frame_[static_cast<Eigen::Index>(i)] +
+                                                    problem_.parameters.time_step * problem_.initial_velocity(position);
     }
-
-    current_frame_[static_cast<Eigen::Index>(point_count_ / 2)] = parameters_.initial_amplitude;
-    next_frame_[static_cast<Eigen::Index>(point_count_ / 2)] = parameters_.initial_amplitude;
 }
 
 void WaveSimulation::notify_observers()
 {
-    const double time = current_step_ * parameters_.time_step;
+    const double time = current_step_ * problem_.parameters.time_step;
     for (SimulationObserver *observer : observers_)
     {
         observer->on_simulation_step(current_step_, time, current_frame_);
     }
-}
-
-double WaveSimulation::initial_displacement(double) const
-{
-    return 0.0;
-}
-
-double WaveSimulation::initial_velocity(double) const
-{
-    return 0.0;
-}
-
-double WaveSimulation::left_boundary(double) const
-{
-    return 0.0;
-}
-
-double WaveSimulation::right_boundary(double) const
-{
-    return 0.0;
 }
 
 } // namespace string_wave

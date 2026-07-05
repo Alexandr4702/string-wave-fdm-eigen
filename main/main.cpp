@@ -5,10 +5,8 @@
  *      Author: gilg
  */
 
-#include <chrono>
 #include <cstdlib>
 #include <iostream>
-#include <thread>
 #include <vector>
 
 #include <Eigen/Dense>
@@ -20,7 +18,13 @@ using namespace Eigen;
 using namespace std;
 
 typedef Triplet<double> TripD;
-vector<VectorXd> *ptr_u;
+
+SparseMatrix<double> evolution_matrix;
+VectorXd previous_frame;
+VectorXd current_frame;
+VectorXd next_frame;
+vector<GLdouble> line;
+int current_step = 0;
 
 inline double f(double)
 {
@@ -71,26 +75,42 @@ void display()
 
     glColor3ub(0, 0, 0);
 
-    static int k = 0;
-    if (k >= R)
-        exit(0);
-
-    vector<GLdouble> line(static_cast<size_t>((*ptr_u)[k].size()) * 2);
-
-    for (int i = 0; i < (*ptr_u)[k].size(); i++)
+    for (int i = 0; i < current_frame.size(); i++)
     {
         line[2 * i] = i * h;
-        line[2 * i + 1] = (*ptr_u)[k][i];
+        line[2 * i + 1] = current_frame[i];
     }
-
-    k++;
-    this_thread::sleep_for(chrono::milliseconds(10));
 
     glVertexPointer(2, GL_DOUBLE, 0, line.data());
     glEnableClientState(GL_VERTEX_ARRAY);
-    glDrawArrays(GL_LINE_STRIP, 0, (*ptr_u)[0].size());
+    glDrawArrays(GL_LINE_STRIP, 0, static_cast<GLsizei>(current_frame.size()));
 
     glutSwapBuffers();
+}
+
+void advance_simulation(int)
+{
+    if (current_step >= R - 1)
+    {
+        return;
+    }
+
+    if (current_step > 0)
+    {
+        next_frame.noalias() = evolution_matrix * current_frame;
+        next_frame -= previous_frame;
+
+        const double next_time = (current_step + 1) * tay;
+        next_frame[0] = g(next_time);
+        next_frame[N - 1] = g1(next_time);
+    }
+
+    previous_frame.swap(current_frame);
+    current_frame.swap(next_frame);
+    current_step++;
+
+    glutPostRedisplay();
+    glutTimerFunc(10, advance_simulation, 0);
 }
 
 void opengl_init(int argc, char **argv)
@@ -105,7 +125,7 @@ void opengl_init(int argc, char **argv)
     glLoadIdentity();
     glOrtho(0, l, -0.5, 0.5, -100, 100);
     glutDisplayFunc(display);
-    glutIdleFunc(display);
+    glutTimerFunc(10, advance_simulation, 0);
     glMatrixMode(GL_MODELVIEW);
 
     glutKeyboardFunc(pressNormalKeys);
@@ -117,8 +137,6 @@ void solve_problem(int argc, char **argv)
 {
     cout << "N= " << N << endl;
     cout << "r= " << R << endl;
-    const auto time__ = chrono::steady_clock::now();
-
     // Initial conditions
     VectorXd fi(N);
     for (int i = 0; i < N; i++)
@@ -130,24 +148,12 @@ void solve_problem(int argc, char **argv)
     {
         f1i[i] = f1(h * i);
     }
-    // Boundary conditions
-    VectorXd gk(R);
-    for (int k = 0; k < R; k++)
-    {
-        gk[k] = g(tay * k);
-    }
-    VectorXd g1k(R);
-    for (int k = 0; k < R; k++)
-    {
-        g1k[k] = g1(tay * k);
-    }
-
     double a = c * c * tay * tay / h / h;
     double b = 2 * (h * h - c * c * tay * tay) / h / h;
 
-    SparseMatrix<double> A(N, N);
+    evolution_matrix.resize(N, N);
     vector<TripD> tripletList;
-    tripletList.reserve(N * 5);
+    tripletList.reserve(3 * N - 4);
 
     tripletList.push_back(TripD(0, 0, 1));
     tripletList.push_back(TripD(N - 1, N - 1, 1));
@@ -158,23 +164,13 @@ void solve_problem(int argc, char **argv)
         tripletList.push_back(TripD(i, i, b));
         tripletList.push_back(TripD(i, i + 1, a));
     }
-    A.setFromTriplets(tripletList.begin(), tripletList.end());
-
-    vector<VectorXd> u(R);
-    ptr_u = &u;
+    evolution_matrix.setFromTriplets(tripletList.begin(), tripletList.end());
+    evolution_matrix.makeCompressed();
 
     fi[N / 2] = 0.1;
-    u[0] = fi;
-    u[1] = f1i * tay + fi;
-
-    for (int k = 1; k < R - 1; k++)
-    {
-        u[k + 1] = A * u[k] - u[k - 1];
-        u[k + 1][0] = gk[k + 1];
-        u[k + 1][N - 1] = g1k[k + 1];
-    }
-    const auto time__1 = chrono::steady_clock::now();
-    cout << chrono::duration<double>(time__1 - time__).count() << " \r\n";
+    current_frame = fi;
+    next_frame = f1i * tay + fi;
+    line.resize(static_cast<size_t>(N) * 2);
 
     opengl_init(argc, argv);
 }

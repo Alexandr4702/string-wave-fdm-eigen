@@ -137,3 +137,9 @@ remain constant up to discretisation and floating-point errors.
 OpenGL renders each computed time layer as the curve $u(x,t)$. The horizontal
 axis represents position along the string, and the vertical axis represents
 transverse displacement.
+
+The simulation advances one time layer before each rendered frame. Only the
+previous, current, and next displacement vectors are retained, so the time
+integration requires $3N$ floating-point values instead of storing the full
+$N \times R$ history. With the current grid, this reduces displacement storage
+from approximately 320 MB to 24 KB.

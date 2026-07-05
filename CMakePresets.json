@@ -1,0 +1,32 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "msys2-clang64",
+      "displayName": "MSYS2 Clang64",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/msys2-clang64",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "C:/msys64/clang64/bin/clang.exe",
+        "CMAKE_CXX_COMPILER": "C:/msys64/clang64/bin/clang++.exe",
+        "CMAKE_MAKE_PROGRAM": "C:/msys64/clang64/bin/ninja.exe"
+      },
+      "environment": {
+        "PATH": "C:\\msys64\\clang64\\bin;$penv{PATH}"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "msys2-clang64",
+      "configurePreset": "msys2-clang64",
+      "jobs": 16
+    }
+  ]
+}
